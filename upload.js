@@ -1,11 +1,9 @@
 const express = require("express");
+const router = express.Router();
 const multer = require("multer");
 const xlsx = require("xlsx");
 const nodemailer = require("nodemailer");
 
-const router = express.Router();
-
-// Set storage for uploaded files
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads/");
@@ -15,53 +13,43 @@ const storage = multer.diskStorage({
   },
 });
 
-// Create upload function using multer
-const upload = multer({ storage }).single("file");
+const upload = multer({ storage: storage });
 
-router.post("/upload", upload, (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ message: "No file uploaded" });
+router.post("/upload", upload.single("file"), async (req, res) => {
+  const { subject, content } = req.body;
+  const filePath = req.file.path;
+  const workbook = xlsx.readFile(filePath);
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const emailColumn = "A";
+  const emails = Object.keys(sheet)
+    .filter((key) => key.startsWith(emailColumn))
+    .map((key) => sheet[key].v);
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "gomathy2511@gmail.com",
+      pass: process.env.EMAIL_PASSWORD,
+    },
+  });
+
+  const mailOptions = {
+    from: "gomathy2511@gmail.com",
+    to: emails.join(","),
+    subject: subject,
+    text: content,
+  };
+
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.error(error);
+      res.status(500).json({ message: "Error sending email" });
+    } else {
+      console.log("Email sent: " + info.response);
+      res.json({ message: "Email sent successfully" });
     }
-    const workbook = xlsx.readFile(file.path);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = xlsx.utils.sheet_to_json(worksheet);
-
-    const emails = data.map((item) => item["Email"]);
-
-    // Create nodemailer transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "gomathy2511@gmail.com",
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
-
-    // Send emails to extracted emails
-    emails.forEach((email) => {
-      const mailOptions = {
-        from: "gomathy2511@gmail.com",
-        to: email,
-        subject: "Bulk Email",
-        text: "Welcome To Bulk Email Sending App",
-      };
-      transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-          console.log(err);
-        } else {
-          console.log(`Email sent to ${email}: ${info.response}`);
-        }
-      });
-    });
-
-    res.status(200).json({ message: "Emails sent successfully" });
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  });
 });
 
 module.exports = router;
