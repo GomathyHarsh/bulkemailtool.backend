@@ -77,7 +77,7 @@ const forgotPassword = async (req,res) => {
         const tokenPayload = new Tokens({userId:user._id,token:hashedToken, createdAt:Date.now()});
         await tokenPayload.save();
 
-        const link= `http://localhost:3000/passwordReset?token=${newToken}&id=${user._id}`;
+        const link= `https://spectacular-starburst-0779c7.netlify.app/passwordReset?token=${newToken}&id=${user._id}`;
         await sendEmail(user.email,'Password Reset Link',{name:user.name,link: link});
        
         return res.status(200).send({message:'Email has been sent successfully'});
