@@ -80,7 +80,7 @@ const forgotPassword = async (req,res) => {
         const link= `http://localhost:3000/passwordReset?token=${newToken}&id=${user._id}`;
         await sendEmail(user.email,'Password Reset Link',{name:user.name,link: link});
        
-        return res.status.send({message:'Email has been sent successfully'});
+        return res.status(200).send({message:'Email has been sent successfully'});
 
     }catch(error){
         res.status(500).send({message:"Internal Server Error"});
